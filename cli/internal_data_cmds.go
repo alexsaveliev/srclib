@@ -9,6 +9,7 @@ import (
 
 	"sourcegraph.com/sourcegraph/srclib/graph"
 	"sourcegraph.com/sourcegraph/srclib/grapher"
+	"sourcegraph.com/sourcegraph/srclib/unit"
 )
 
 func init() {
@@ -18,11 +19,46 @@ func init() {
 			log.Fatal(err)
 		}
 
+		_, err = c.AddCommand("emit-unit-data", "", "", &emitUnitDataCmd)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		_, err = c.AddCommand("normalize-graph-data", "", "", &normalizeGraphDataCmd)
 		if err != nil {
 			log.Fatal(err)
 		}
 	})
+}
+
+type EmitUnitDataCmd struct {
+	Args struct {
+		Units []string `name:"units" description:"Paths to source units."`
+	} `positional-args:"yes"`
+}
+
+var emitUnitDataCmd EmitUnitDataCmd
+
+func (c *EmitUnitDataCmd) Execute(args []string) error {
+	var units unit.SourceUnits
+
+	for _, path := range c.Args.Units {
+		unitFile, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		var u *unit.SourceUnit
+		if err := json.NewDecoder(unitFile).Decode(&u); err != nil {
+			return err
+		}
+		units = append(units, u)
+	}
+
+	if err := json.NewEncoder(os.Stdout).Encode(units); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 type NormalizeGraphDataCmd struct {
